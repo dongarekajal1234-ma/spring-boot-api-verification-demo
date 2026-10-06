@@ -1,0 +1,878 @@
+{
+  "info": {
+    "name": "Spring Boot API Verification Demo",
+    "description": "Requests and assertions for the User Management API. Run the whole collection in order with the Collection Runner; every request carries tests for its expected status and error type. See docs/verification-scenarios.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Happy path",
+      "item": [
+        {
+          "name": "Create valid user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asha Verma\",\n  \"email\": \"{{email}}\",\n  \"age\": 30,\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "description": "Creates a user with a unique email per run and stores its id in {{userId}}."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"email\", `asha.verma.${Date.now()}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Location header points to new user\", () => pm.expect(pm.response.headers.get(\"Location\")).to.include(`/api/users/${body.id}`));",
+                  "pm.test(\"Email is normalized to lower case\", () => pm.expect(body.email).to.eql(pm.collectionVariables.get(\"email\").toLowerCase()));",
+                  "pm.test(\"createdAt equals updatedAt on creation\", () => pm.expect(body.createdAt).to.eql(body.updatedAt));",
+                  "pm.collectionVariables.set(\"userId\", body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get all users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response is an array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get user by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Returns the requested user\", () => pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get(\"userId\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search user by email (case-insensitive)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/search?email={{email}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "{{email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Upper-case the stored email to prove the lookup is case-insensitive",
+                  "pm.variables.set(\"email\", pm.collectionVariables.get(\"email\").toUpperCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Finds the created user\", () => pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get(\"userId\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update user",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asha Rao\",\n  \"email\": \"{{email}}\",\n  \"age\": 31,\n  \"status\": \"INACTIVE\"\n}"
+            },
+            "description": "Keeps the same email, which must be allowed (the uniqueness check excludes the user being updated)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Fields are updated\", () => {",
+                  "    pm.expect(body.name).to.eql(\"Asha Rao\");",
+                  "    pm.expect(body.age).to.eql(31);",
+                  "    pm.expect(body.status).to.eql(\"INACTIVE\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Validation and error cases",
+      "item": [
+        {
+          "name": "Create user - duplicate email (different case)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Another Asha\",\n  \"email\": \"{{emailUpper}}\",\n  \"age\": 40,\n  \"status\": \"ACTIVE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set(\"emailUpper\", pm.collectionVariables.get(\"email\").toUpperCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is DUPLICATE_EMAIL\", () => pm.expect(body.error).to.eql(\"DUPLICATE_EMAIL\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create invalid user - multiple field errors",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"   \",\n  \"email\": \"not-an-email\",\n  \"age\": 12,\n  \"status\": \"PENDING\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is VALIDATION_FAILED\", () => pm.expect(body.error).to.eql(\"VALIDATION_FAILED\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});",
+                  "pm.test(\"Every invalid field is reported\", () => pm.expect(body.fieldErrors.map(e => e.field)).to.have.members([\"age\", \"email\", \"name\", \"status\"]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create user - missing required fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is VALIDATION_FAILED\", () => pm.expect(body.error).to.eql(\"VALIDATION_FAILED\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});",
+                  "pm.test(\"Four field errors\", () => pm.expect(body.fieldErrors).to.have.lengthOf(4));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create user - invalid email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asha Verma\",\n  \"email\": \"user@localhost\",\n  \"age\": 30,\n  \"status\": \"ACTIVE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is VALIDATION_FAILED\", () => pm.expect(body.error).to.eql(\"VALIDATION_FAILED\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});",
+                  "pm.test(\"Error is on email\", () => pm.expect(body.fieldErrors[0].field).to.eql(\"email\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create user - age below minimum (17)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asha Verma\",\n  \"email\": \"minor.check@example.com\",\n  \"age\": 17,\n  \"status\": \"ACTIVE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is VALIDATION_FAILED\", () => pm.expect(body.error).to.eql(\"VALIDATION_FAILED\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});",
+                  "pm.test(\"Age message\", () => pm.expect(body.fieldErrors[0].message).to.eql(\"Age must be at least 18\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create user - age above maximum (101)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asha Verma\",\n  \"email\": \"max.age.check@example.com\",\n  \"age\": 101,\n  \"status\": \"ACTIVE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is VALIDATION_FAILED\", () => pm.expect(body.error).to.eql(\"VALIDATION_FAILED\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});",
+                  "pm.test(\"Age message\", () => pm.expect(body.fieldErrors[0].message).to.eql(\"Age must not exceed 100\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create user - invalid status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asha Verma\",\n  \"email\": \"status.check@example.com\",\n  \"age\": 30,\n  \"status\": \"active\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is VALIDATION_FAILED\", () => pm.expect(body.error).to.eql(\"VALIDATION_FAILED\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});",
+                  "pm.test(\"Status message\", () => pm.expect(body.fieldErrors[0].message).to.eql(\"Status must be ACTIVE or INACTIVE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create user - malformed JSON",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Asha\","
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is MALFORMED_REQUEST\", () => pm.expect(body.error).to.eql(\"MALFORMED_REQUEST\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});",
+                  "pm.test(\"Message\", () => pm.expect(body.message).to.eql(\"Malformed JSON request body\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create user - empty body",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is MALFORMED_REQUEST\", () => pm.expect(body.error).to.eql(\"MALFORMED_REQUEST\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});",
+                  "pm.test(\"Message\", () => pm.expect(body.message).to.eql(\"Request body is missing\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create user - client-supplied id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 999,\n  \"name\": \"Asha Verma\",\n  \"email\": \"id.check@example.com\",\n  \"age\": 30,\n  \"status\": \"ACTIVE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is MALFORMED_REQUEST\", () => pm.expect(body.error).to.eql(\"MALFORMED_REQUEST\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});",
+                  "pm.test(\"Message\", () => pm.expect(body.message).to.eql(\"Unknown field 'id'\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get nonexistent user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/987654",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "987654"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is USER_NOT_FOUND\", () => pm.expect(body.error).to.eql(\"USER_NOT_FOUND\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid ID - negative",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/-1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "-1"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is INVALID_ID\", () => pm.expect(body.error).to.eql(\"INVALID_ID\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid ID - zero",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "0"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is INVALID_ID\", () => pm.expect(body.error).to.eql(\"INVALID_ID\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid ID - non-numeric",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "abc"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is INVALID_ID\", () => pm.expect(body.error).to.eql(\"INVALID_ID\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Delete and confirm",
+      "item": [
+        {
+          "name": "Delete user",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Body is empty\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get deleted user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error is USER_NOT_FOUND\", () => pm.expect(body.error).to.eql(\"USER_NOT_FOUND\"));",
+                  "pm.test(\"Error contract fields present\", () => {",
+                  "    [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(k => pm.expect(body).to.have.property(k));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "email",
+      "value": ""
+    }
+  ]
+}

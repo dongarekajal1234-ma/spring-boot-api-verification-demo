@@ -1,0 +1,39 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+dependency-reduced-pom.xml
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Eclipse / VS Code
+.classpath
+.project
+.settings/
+.factorypath
+bin/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and local runtime files
+*.log
+logs/
+*.mv.db
+*.trace.db
+
+# Local configuration and secrets (never commit)
+.env
+*.env
+application-local.properties
+application-local.yml
